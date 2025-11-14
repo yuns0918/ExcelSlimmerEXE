@@ -36,7 +36,7 @@ def _ensure_module_paths() -> None:
 
 _ensure_module_paths()
 
-from excel_suite_pipeline import run_pipeline_core
+from excel_suite_pipeline import run_pipeline_core, open_in_explorer_select
 
 
 def run_image_slim(
@@ -611,7 +611,16 @@ class MainWindow(QMainWindow):
                 "완료",
                 f"모든 작업이 완료되었습니다.\n\n최종 결과 파일:\n{final_path}",
             )
-            # 자동으로 탐색기를 열지 않고, 안내 문구로 경로만 보여줍니다.
+            # 탐색기 열기는 별도 스레드에서 실행해 UI 블로킹을 방지합니다.
+            try:
+                threading.Thread(
+                    target=open_in_explorer_select,
+                    args=(Path(final_path),),
+                    daemon=True,
+                ).start()
+            except Exception:
+                # 탐색기 열기 실패는 치명적이지 않으므로 조용히 무시합니다.
+                pass
 
         def on_failed(msg: str) -> None:
             self.run_button.setEnabled(True)

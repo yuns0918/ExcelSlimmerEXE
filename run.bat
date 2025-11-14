@@ -23,8 +23,8 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo [*] Launching ExcelSlimmer (classic UI)...
-python "excel_suite_pipeline.py"
+echo [*] Launching ExcelSlimmer (Qt UI)...
+python "excel_slimmer_qt.py"
 
 echo.
 echo [INFO] Program finished.

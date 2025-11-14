@@ -297,20 +297,20 @@ class MainWindow(QMainWindow):
         tabs.addTab(self.settings_tab, "환경 설정")
 
         pipe_layout = QGridLayout(self.pipeline_tab)
-        # 좌우 12px 정도 여백을 줘서 왼쪽 카드/오른쪽 로그가 탭 가장자리에서
-        # 동일한 간격만큼 안으로 들어오도록 한다.
-        pipe_layout.setContentsMargins(12, 0, 12, 0)
+        # 좌우는 12px, 상단은 약간 내려서 슬리머 실행 탭 상단과 라벨 사이 간격을 확보
+        pipe_layout.setContentsMargins(12, 8, 12, 0)
         pipe_layout.setHorizontalSpacing(12)
 
         left_col = QWidget()
         left_layout = QVBoxLayout(left_col)
         left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.setSpacing(10)
+        # 라벨과 카드 사이 간격을 줄이기 위해 spacing을 약간 낮게 설정
+        left_layout.setSpacing(6)
 
         right_col = QWidget()
         right_layout = QVBoxLayout(right_col)
         right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(10)
+        right_layout.setSpacing(6)
 
         pipe_layout.addWidget(left_col, 0, 0)
         pipe_layout.addWidget(right_col, 0, 1)

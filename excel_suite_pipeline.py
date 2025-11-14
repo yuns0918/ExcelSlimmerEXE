@@ -412,10 +412,12 @@ class ExcelSuiteApp:
         )
         self.run_button.pack(anchor="w")
 
-        status_row = ttk.Frame(run_card, style="Card.TFrame")
+        # 상태/진행률 영역은 카드 안쪽이므로 별도 테두리 없이 App.TFrame 사용
+        status_row = ttk.Frame(run_card, style="App.TFrame")
         status_row.pack(fill="x", pady=(8, 0))
         status_label = ttk.Label(status_row, textvariable=self.status_var)
-        status_label.pack(side="right")
+        # 오른쪽이 살짝 잘려 보이지 않도록 약간의 내부 여백을 준다
+        status_label.pack(side="right", padx=(4, 0))
         self.progress = ttk.Progressbar(
             status_row,
             maximum=100.0,

@@ -238,6 +238,10 @@ class PipelineWorker(QObject):
                 self.failed.emit(f"{step} 단계에서 오류: {e}")
                 return
 
+        self.status.emit("모든 작업 완료", 100.0)
+        self.log.emit(f"[INFO] 파이프라인 완료. 최종 파일: {current}")
+        self.finished.emit(str(current))
+
         # 모든 단계가 성공적으로 끝난 경우에만 중간 산출물 및 로그 정리
         for tmp in intermediate_files:
             try:
@@ -254,10 +258,6 @@ class PipelineWorker(QObject):
                     self.log.emit(f"[INFO] 로그 파일 삭제: {log_path}")
             except Exception as e:  # noqa: BLE001
                 self.log.emit(f"[WARN] 로그 파일 삭제 실패: {log_path} ({e})")
-
-        self.status.emit("모든 작업 완료", 100.0)
-        self.log.emit(f"[INFO] 파이프라인 완료. 최종 파일: {current}")
-        self.finished.emit(str(current))
 
 
 class MainWindow(QMainWindow):
@@ -547,15 +547,18 @@ class MainWindow(QMainWindow):
         def on_finished(final_path: str) -> None:
             self._set_status("모든 작업 완료", 100.0)
             self.run_button.setEnabled(True)
-            try:
-                open_in_explorer_select(Path(final_path))
-            except Exception:  # noqa: BLE001
-                pass
             QMessageBox.information(
                 self,
                 "완료",
                 f"모든 작업이 완료되었습니다.\n\n최종 결과 파일:\n{final_path}",
             )
+
+            # 탐색기 열기는 별도 스레드에서 실행해 UI 블로킹(응답 없음)을 방지
+            threading.Thread(
+                target=open_in_explorer_select,
+                args=(Path(final_path),),
+                daemon=True,
+            ).start()
 
         def on_failed(msg: str) -> None:
             self.run_button.setEnabled(True)

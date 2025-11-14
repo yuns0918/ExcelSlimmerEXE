@@ -172,5 +172,5 @@ Desktop\ExcelSlimmed\YYYY-MM-DD-HH-MM-SS\
   통합 도구도 그 로직을 그대로 사용합니다.
   - 단, **함수 이름이나 시그니처를 크게 바꾸는 경우**에는
     `excel_suite_pipeline.py` 쪽 호출 코드도 함께 수정해야 합니다.
-- GitHub 저장소: `https://github.com/yuns0918/ExcelSlimmed`
+- GitHub 저장소: `https://github.com/yuns0918/ExcelSlimmer`
   - 변경 후에는 `git add . && git commit && git push` 로 버전 관리를 유지합니다.

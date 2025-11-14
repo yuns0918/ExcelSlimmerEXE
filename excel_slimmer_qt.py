@@ -301,7 +301,9 @@ class MainWindow(QMainWindow):
         tabs.addTab(self.settings_tab, "환경 설정")
 
         pipe_layout = QGridLayout(self.pipeline_tab)
-        pipe_layout.setContentsMargins(0, 0, 0, 0)
+        # 좌우 12px 정도 여백을 줘서 왼쪽 카드/오른쪽 로그가 탭 가장자리에서
+        # 동일한 간격만큼 안으로 들어오도록 한다.
+        pipe_layout.setContentsMargins(12, 0, 12, 0)
         pipe_layout.setHorizontalSpacing(12)
 
         left_col = QWidget()
@@ -375,7 +377,7 @@ class MainWindow(QMainWindow):
         opt_layout.addWidget(self.xmlcleanup_check)
         opt_layout.addWidget(self.force_custom_check)
 
-        opt_warn = QLabel("주의: 일반적인 경우 사용하지 마세요")
+        opt_warn = QLabel("주의: 숨은 XML 데이터 삭제는 일반적인 경우 사용하지 마세요.")
         opt_warn.setStyleSheet("color: #aa0000; font-size: 9pt;")
         opt_layout.addWidget(opt_warn)
 

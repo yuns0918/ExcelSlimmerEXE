@@ -80,8 +80,9 @@ def run_precision_step(
 class ExcelSuiteApp:
     def __init__(self) -> None:
         self.root = tk.Tk()
-        self.root.title("Excel Suite Pipeline")
-        self.root.geometry("780x520")
+        self.root.title("ExcelSlimmer")
+        self.root.geometry("1120x720")
+        self.root.minsize(960, 640)
 
         self.file_var = tk.StringVar()
         self.clean_var = tk.IntVar(value=1)
@@ -103,112 +104,174 @@ class ExcelSuiteApp:
             style.theme_use("vista")
         except Exception:
             pass
-        style.configure("TButton", font=("Segoe UI", 10))
-        style.configure("Header.TLabel", font=("Segoe UI", 14, "bold"))
 
-        outer = ttk.Frame(self.root, padding=16)
+        base_bg = "#f4f5fb"
+        card_bg = "#ffffff"
+        self.root.configure(bg=base_bg)
+
+        style.configure("App.TFrame", background=base_bg)
+        style.configure("Card.TFrame", background=card_bg)
+        style.configure("Card.TLabelframe", background=card_bg)
+        style.configure("Card.TLabelframe.Label", background=card_bg, font=("Segoe UI", 10, "bold"))
+        style.configure("TButton", font=("Segoe UI", 10))
+        style.configure("Header.TLabel", font=("Segoe UI", 16, "bold"), background=base_bg)
+        style.configure("SubHeader.TLabel", foreground="#666666", background=base_bg)
+
+        outer = ttk.Frame(self.root, style="App.TFrame", padding=(18, 14, 18, 18))
         outer.pack(fill="both", expand=True)
 
-        header = ttk.Label(outer, text="Excel Suite Pipeline", style="Header.TLabel")
-        header.pack(anchor="w")
+        header_frame = ttk.Frame(outer, style="App.TFrame")
+        header_frame.pack(fill="x", pady=(0, 12))
 
-        sub = ttk.Label(
-            outer,
-            text="한 번에: 이름 정의 정리 → 이미지 최적화 → 정밀 슬리머",
-            foreground="#555555",
+        title_label = ttk.Label(header_frame, text="ExcelSlimmer", style="Header.TLabel")
+        title_label.pack(side="left", anchor="w")
+
+        subtitle = ttk.Label(
+            header_frame,
+            text="Excel 파일을 한 번에 정리하고 슬림하게 만드는 통합 도구",
+            style="SubHeader.TLabel",
         )
-        sub.pack(anchor="w", pady=(0, 10))
+        subtitle.pack(side="left", padx=(12, 0), anchor="s")
 
-        file_frame = ttk.Frame(outer)
-        file_frame.pack(fill="x", pady=(0, 12))
-        ttk.Label(file_frame, text="대상 파일:").pack(side="left")
-        entry = ttk.Entry(file_frame, textvariable=self.file_var)
-        entry.pack(side="left", fill="x", expand=True, padx=(8, 8))
-        ttk.Button(file_frame, text="찾기...", command=self._select_file).pack(side="left")
+        notebook = ttk.Notebook(outer)
+        notebook.pack(fill="both", expand=True)
 
-        options_frame = ttk.Frame(outer)
-        options_frame.pack(fill="x", pady=(0, 10))
+        pipeline_page = ttk.Frame(notebook, style="App.TFrame")
+        settings_page = ttk.Frame(notebook, style="App.TFrame")
+        notebook.add(pipeline_page, text="파이프라인")
+        notebook.add(settings_page, text="환경 설정")
 
-        left = ttk.Labelframe(options_frame, text="실행할 기능")
-        left.pack(side="left", fill="both", expand=True, padx=(0, 8))
+        ttk.Label(
+            settings_page,
+            text="환경 설정은 추후 확장을 위해 예약된 영역입니다.",
+            style="SubHeader.TLabel",
+        ).pack(pady=20, padx=20, anchor="w")
+
+        pipeline_page.columnconfigure(0, weight=0, minsize=380)
+        pipeline_page.columnconfigure(1, weight=1)
+        pipeline_page.rowconfigure(0, weight=1)
+
+        left_col = ttk.Frame(pipeline_page, style="App.TFrame")
+        left_col.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
+        right_col = ttk.Frame(pipeline_page, style="App.TFrame")
+        right_col.grid(row=0, column=1, sticky="nsew")
+
+        file_card = ttk.Labelframe(
+            left_col,
+            text="대상 파일",
+            style="Card.TLabelframe",
+            padding=(12, 10, 12, 12),
+        )
+        file_card.pack(fill="x", pady=(0, 10))
+        ttk.Label(file_card, text="파일 경로:").pack(anchor="w")
+        entry = ttk.Entry(file_card, textvariable=self.file_var)
+        entry.pack(fill="x", expand=True, pady=(4, 6))
+        ttk.Button(file_card, text="찾기...", command=self._select_file).pack(anchor="e")
+
+        pipeline_card = ttk.Labelframe(
+            left_col,
+            text="실행할 기능",
+            style="Card.TLabelframe",
+            padding=(12, 8, 12, 10),
+        )
+        pipeline_card.pack(fill="x", pady=(0, 10))
+
         ttk.Checkbutton(
-            left,
+            pipeline_card,
             text="1) 이름 정의 정리 (definedNames 클린)",
             variable=self.clean_var,
-        ).pack(anchor="w", pady=(2, 2), padx=8)
+        ).pack(anchor="w", pady=(2, 2))
         ttk.Checkbutton(
-            left,
+            pipeline_card,
             text="2) 이미지 최적화 (이미지 리사이즈/압축)",
             variable=self.image_var,
-        ).pack(anchor="w", pady=(2, 2), padx=8)
+        ).pack(anchor="w", pady=(2, 2))
         self.precision_check = ttk.Checkbutton(
-            left,
+            pipeline_card,
             text="3) 정밀 슬리머 (Precision Plus)",
             variable=self.precision_var,
             command=self._on_precision_toggle,
         )
-        self.precision_check.pack(anchor="w", pady=(2, 2), padx=8)
+        self.precision_check.pack(anchor="w", pady=(2, 0))
         self.precision_warning = ttk.Label(
-            left,
+            pipeline_card,
             text="주의: 정밀 슬리머 사용 시 엑셀에서 복구 여부를 물어볼 수 있습니다.",
             foreground="#aa0000",
+            background=card_bg,
         )
-        self.precision_warning.pack(anchor="w", padx=22, pady=(0, 4))
+        self.precision_warning.pack(anchor="w", padx=18, pady=(0, 4))
 
-        right = ttk.Labelframe(options_frame, text="정밀 슬리머 옵션")
-        right.pack(side="left", fill="both", expand=True, padx=(8, 0))
+        precision_card = ttk.Labelframe(
+            left_col,
+            text="정밀 슬리머 옵션",
+            style="Card.TLabelframe",
+            padding=(12, 8, 12, 10),
+        )
+        precision_card.pack(fill="x", pady=(0, 10))
+
         self.prec_aggressive_cb = ttk.Checkbutton(
-            right,
+            precision_card,
             text="공격 모드 (이미지 리사이즈 + PNG→JPG)",
             variable=self.prec_aggressive_var,
         )
-        self.prec_aggressive_cb.pack(anchor="w", padx=8, pady=(2, 2))
+        self.prec_aggressive_cb.pack(anchor="w", pady=(2, 2))
         self.prec_xmlcleanup_cb = ttk.Checkbutton(
-            right,
+            precision_card,
             text="XML 정리 (calcChain, printerSettings 등)",
             variable=self.prec_xmlcleanup_var,
         )
-        self.prec_xmlcleanup_cb.pack(anchor="w", padx=8, pady=(2, 2))
+        self.prec_xmlcleanup_cb.pack(anchor="w", pady=(2, 2))
         self.prec_force_custom_cb = ttk.Checkbutton(
-            right,
+            precision_card,
             text="숨은 XML 데이터 삭제 (customXml, 주의)",
             variable=self.prec_force_custom_var,
         )
-        self.prec_force_custom_cb.pack(anchor="w", padx=8, pady=(2, 2))
+        self.prec_force_custom_cb.pack(anchor="w", pady=(2, 2))
         self.prec_force_custom_hint = ttk.Label(
-            right,
+            precision_card,
             text="권장: 일반적인 경우 사용하지 마세요",
             foreground="#aa0000",
+            background=card_bg,
         )
-        self.prec_force_custom_hint.pack(anchor="w", padx=22, pady=(0, 4))
-        run_frame = ttk.Frame(outer)
-        run_frame.pack(fill="x", pady=(4, 8))
+        self.prec_force_custom_hint.pack(anchor="w", padx=18, pady=(0, 4))
+
+        run_card = ttk.Frame(left_col, style="Card.TFrame", padding=(12, 10, 12, 12))
+        run_card.pack(fill="x")
+
         self.run_button = ttk.Button(
-            run_frame,
+            run_card,
             text="선택한 기능 실행",
             command=self._on_run_clicked,
         )
-        self.run_button.pack(side="left")
-        status_label = ttk.Label(run_frame, textvariable=self.status_var)
-        status_label.pack(side="right")
+        self.run_button.pack(anchor="w")
 
-        progress_frame = ttk.Frame(outer)
-        progress_frame.pack(fill="x", pady=(0, 8))
+        status_row = ttk.Frame(run_card, style="Card.TFrame")
+        status_row.pack(fill="x", pady=(8, 0))
+        status_label = ttk.Label(status_row, textvariable=self.status_var)
+        status_label.pack(side="right")
         self.progress = ttk.Progressbar(
-            progress_frame,
+            status_row,
             maximum=100.0,
             variable=self.progress_var,
         )
-        self.progress.pack(fill="x")
+        self.progress.pack(side="left", fill="x", expand=True, padx=(0, 8))
 
-        log_frame = ttk.Labelframe(outer, text="로그")
-        log_frame.pack(fill="both", expand=True)
-        self.log_box = scrolledtext.ScrolledText(
-            log_frame,
-            height=12,
-            state="disabled",
+        log_card = ttk.Labelframe(
+            right_col,
+            text="로그",
+            style="Card.TLabelframe",
+            padding=(12, 8, 12, 12),
         )
-        self.log_box.pack(fill="both", expand=True, padx=4, pady=4)
+        log_card.pack(fill="both", expand=True)
+
+        self.log_box = scrolledtext.ScrolledText(
+            log_card,
+            height=10,
+            state="disabled",
+            bg=card_bg,
+            relief="flat",
+        )
+        self.log_box.pack(fill="both", expand=True)
 
         self._update_precision_options_state()
 

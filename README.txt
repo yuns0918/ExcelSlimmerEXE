@@ -1,4 +1,4 @@
-ExcelSlimmed README
+ExcelSlimmer README
 ===================
 
 이 프로젝트의 상세 설명은 `README.md` 파일을 참고하세요.
@@ -8,5 +8,5 @@ ExcelSlimmed README
 
 간단 요약:
 
-- ExcelSlimmed는 ExcelCleaner / Image Slimmer / Precision Plus를 하나의 파이프라인에서 실행하는 통합 도구입니다.
+- ExcelSlimmer는 ExcelCleaner / Image Slimmer / Precision Plus를 하나의 파이프라인에서 실행하는 통합 도구입니다.
 - 개발/빌드/사용 방법, 주의 사항, 출력 구조 등은 모두 `README.md`에 정리되어 있습니다.

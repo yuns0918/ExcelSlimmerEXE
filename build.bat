@@ -5,7 +5,7 @@ set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
 
 echo =============================================
-echo ExcelSlimmed - Build single EXE (PyInstaller)
+echo ExcelSlimmer - Build single EXE (PyInstaller)
 echo =============================================
 
 if not exist ".venv_suite" (
@@ -28,11 +28,11 @@ for %%D in (build dist __pycache__) do (
   if exist "%%D" rmdir /s /q "%%D"
 )
 
-set "NAME=ExcelSlimmed"
+set "NAME=ExcelSlimmer"
 
-rem 우선 현재 폴더에 있는 ExcelSlimmed.ico 를 사용하고,
+rem 우선 현재 폴더에 있는 ExcelSlimmer.ico 를 사용하고,
 rem 없으면 기존 ExcelCleaner\icon.ico 를 사용합니다.
-set "ICON=ExcelSlimmed.ico"
+set "ICON=ExcelSlimmer.ico"
 if not exist "%ICON%" set "ICON=..\ExcelCleaner\icon.ico"
 
 echo [*] Building single EXE with PyInstaller...

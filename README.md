@@ -1,6 +1,6 @@
-# ExcelSlimmed
+# ExcelSlimmer
 
-ExcelSlimmed은 다음 세 가지 Excel 최적화 도구를 **한 번에 파이프라인으로 실행**할 수 있게 해주는 통합 런처입니다.
+ExcelSlimmer는 다음 세 가지 Excel 최적화 도구를 **한 번에 파이프라인으로 실행**할 수 있게 해주는 통합 런처입니다.
 
 1. **ExcelCleaner** – 이름 정의(definedNames) 정리
 2. **Excel Image Slimmer** – 이미지 리사이즈/압축
@@ -19,7 +19,7 @@ ExcelSlimmed은 다음 세 가지 Excel 최적화 도구를 **한 번에 파이�
 - `C:\Users\...\Desktop\ExcelByteReduce\`
 - `C:\Users\...\Desktop\ExcelSuite\`  ← 이 저장소(통합 런처)
 
-> 배포용 EXE만 사용할 때는 이 구조가 필요 없고, `ExcelSlimmed.exe` 하나만 있으면 됩니다.
+> 배포용 EXE만 사용할 때는 이 구조가 필요 없고, `ExcelSlimmer.exe` 하나만 있으면 됩니다.
 
 ---
 
@@ -67,13 +67,13 @@ ExcelSlimmed은 다음 세 가지 Excel 최적화 도구를 **한 번에 파이�
 2. 스크립트가 수행하는 작업
    - 이전 `build/`, `dist/` 폴더 정리
    - PyInstaller를 사용해 **단일 EXE** 생성
-   - EXE 이름: `dist\ExcelSlimmed.exe`
+   - EXE 이름: `dist\ExcelSlimmer.exe`
    - 아이콘 사용 규칙
-     - `ExcelSuite\ExcelSlimmed.ico` 가 존재하면 이를 아이콘으로 사용
+     - `ExcelSuite\ExcelSlimmer.ico` 가 존재하면 이를 아이콘으로 사용
      - 없으면 `..\ExcelCleaner\icon.ico`를 사용
 3. `[OK] Build complete.` 메시지가 나오면 빌드 성공입니다.
 
-> **배포 시:** `dist\ExcelSlimmed.exe` 파일 **한 개만** 전달하면 됩니다.
+> **배포 시:** `dist\ExcelSlimmer.exe` 파일 **한 개만** 전달하면 됩니다.
 > 상대방 PC에는 Python이 설치되어 있지 않아도 됩니다.
 
 ---

@@ -1,4 +1,4 @@
-# CHANGELOG - ExcelSlimmed
+# CHANGELOG - ExcelSlimmer
 
 ## 2025-11-15
 
@@ -54,8 +54,8 @@
   - `.venv_suite` 활성화 후 `excel_suite_pipeline.py` 실행.
 - `build.bat`:
   - PyInstaller를 사용해 단일 EXE 빌드하도록 구성.
-  - EXE 이름을 `ExcelSlimmed.exe` 로 변경.
+  - EXE 이름을 `ExcelSlimmer.exe` 로 변경.
   - 아이콘 우선순위:
-    - 현재 폴더의 `ExcelSlimmed.ico`가 존재하면 사용.
+    - 현재 폴더의 `ExcelSlimmer.ico`가 존재하면 사용.
     - 없으면 `..\ExcelCleaner\icon.ico` 를 사용.
 

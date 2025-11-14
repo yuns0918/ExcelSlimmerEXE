@@ -77,6 +77,164 @@ def run_precision_step(
     return input_path, 0.0, 0.0, size, size
 
 
+def run_pipeline_core(
+    start_path: Path,
+    use_clean: bool,
+    use_image: bool,
+    use_precision: bool,
+    aggressive: bool,
+    do_xml_cleanup: bool,
+    force_custom: bool,
+    log,
+    set_status,
+    show_error,
+    on_finished,
+) -> None:
+    """UI-agnostic pipeline core shared by different front-ends.
+
+    All UI interactions (로그 출력, 상태 표시, 메시지박스, 탐색기 열기 등)는
+    콜백으로 주입받고 여기서는 순수하게 파이프라인 로직만 처리한다.
+    """
+
+    current = start_path
+    intermediate_files = []
+    log_files = []
+
+    steps = []
+    if use_clean:
+        steps.append("clean")
+    if use_image:
+        steps.append("image")
+    if use_precision:
+        steps.append("precision")
+
+    total = len(steps)
+    log(f"[INFO] 파이프라인 시작: {start_path.name}, 단계 {total}개")
+
+    for index, step in enumerate(steps, start=1):
+        base = (index - 1) * 100.0 / total if total else 0.0
+        next_p = index * 100.0 / total if total else 100.0
+        try:
+            if step == "clean":
+                set_status("이름 정의 정리 중...", base)
+                log(f"[{index}/{total}] 이름 정의 정리: {current.name}")
+                (
+                    backup_path,
+                    cleaned_path,
+                    stats,
+                    ts_dir,
+                    top_dir,
+                ) = process_file_gui(str(current))
+                current = Path(cleaned_path)
+                if step != steps[-1]:
+                    intermediate_files.append(current)
+                log(f" - 백업: {backup_path}")
+                log(f" - 정리본: {cleaned_path}")
+                log(
+                    " - 통계: total="
+                    + str(stats["total"])
+                    + ", kept="
+                    + str(stats["kept"])
+                    + ", removed="
+                    + str(stats["removed"])
+                )
+            elif step == "image":
+                set_status("이미지 최적화 중...", base)
+                log(f"[{index}/{total}] 이미지 최적화: {current.name}")
+                (
+                    out_path,
+                    before,
+                    after,
+                    count,
+                    log_path,
+                ) = run_image_slim(
+                    current,
+                    max_edge=1400,
+                    jpeg_quality=80,
+                    progressive=True,
+                )
+                current = out_path
+                if step != steps[-1]:
+                    intermediate_files.append(current)
+                saved = before - after
+                pct = (saved / before * 100.0) if before > 0 else 0.0
+                log(f" - 이미지 개수: {count}")
+                log(
+                    " - Before: "
+                    + human_size(before)
+                    + ", After: "
+                    + human_size(after)
+                    + ", Saved: "
+                    + human_size(saved)
+                    + f" ({pct:.1f}%)"
+                )
+                log(f" - 로그: {log_path}")
+                log_files.append(log_path)
+            elif step == "precision":
+                set_status("정밀 슬리머 실행 중...", base)
+                log(f"[{index}/{total}] 정밀 슬리머: {current.name}")
+                has_clean_step = "clean" in steps
+                no_backup = has_clean_step
+
+                def logger(msg: str) -> None:
+                    log("[Precision] " + msg)
+
+                (
+                    out_path,
+                    saved_mb,
+                    pct,
+                    old_b,
+                    new_b,
+                ) = run_precision_step(
+                    current,
+                    aggressive,
+                    no_backup,
+                    do_xml_cleanup,
+                    force_custom,
+                    logger,
+                )
+                current = out_path
+                log(f" - 결과: {current.name}")
+                log(
+                    " - Before: "
+                    + human_size(old_b)
+                    + ", After: "
+                    + human_size(new_b)
+                    + f", Saved: {saved_mb:.2f} MB ({pct:.1f}%)"
+                )
+
+            set_status("진행 중...", next_p)
+        except Exception as e:  # noqa: BLE001
+            log(f"[ERROR] {step} 단계에서 오류: {e}")
+            set_status("오류 발생", None)
+            show_error(
+                "오류",
+                f"{step} 단계에서 오류가 발생했습니다.\n\n{e}",
+            )
+            return
+
+    # 모든 단계가 성공적으로 끝난 경우에만 중간 산출물 및 로그 정리
+    for tmp in intermediate_files:
+        try:
+            if tmp.exists() and tmp != current:
+                tmp.unlink()
+                log(f"[INFO] 중간 결과 삭제: {tmp}")
+        except Exception as e:  # noqa: BLE001
+            log(f"[WARN] 중간 결과 삭제 실패: {tmp} ({e})")
+
+    for log_path in log_files:
+        try:
+            if log_path.exists():
+                log_path.unlink()
+                log(f"[INFO] 로그 파일 삭제: {log_path}")
+        except Exception as e:  # noqa: BLE001
+            log(f"[WARN] 로그 파일 삭제 실패: {log_path} ({e})")
+
+    set_status("모든 작업 완료", 100.0)
+    log(f"[INFO] 파이프라인 완료. 최종 파일: {current}")
+    on_finished(current)
+
+
 class ExcelSuiteApp:
     def __init__(self) -> None:
         self.root = tk.Tk()
@@ -110,7 +268,12 @@ class ExcelSuiteApp:
         self.root.configure(bg=base_bg)
 
         style.configure("App.TFrame", background=base_bg)
-        style.configure("Card.TFrame", background=card_bg)
+        style.configure(
+            "Card.TFrame",
+            background=card_bg,
+            borderwidth=1,
+            relief="solid",
+        )
         style.configure(
             "Card.TLabelframe",
             background=card_bg,
@@ -126,6 +289,7 @@ class ExcelSuiteApp:
         style.map("TButton", background=[("active", "#f0f0f0")])
         style.configure("Header.TLabel", font=("Segoe UI", 16, "bold"), background=base_bg)
         style.configure("SubHeader.TLabel", foreground="#666666", background=base_bg)
+        style.configure("Section.TLabel", font=("Segoe UI", 10, "bold"), background=base_bg)
 
         outer = ttk.Frame(self.root, style="App.TFrame", padding=(18, 14, 18, 18))
         outer.pack(fill="both", expand=True)
@@ -136,19 +300,12 @@ class ExcelSuiteApp:
         title_label = ttk.Label(header_frame, text="ExcelSlimmer", style="Header.TLabel")
         title_label.pack(side="left", anchor="w")
 
-        subtitle = ttk.Label(
-            header_frame,
-            text="Excel 파일을 한 번에 정리하고 슬림하게 만드는 통합 도구",
-            style="SubHeader.TLabel",
-        )
-        subtitle.pack(side="left", padx=(12, 0), anchor="s")
-
         notebook = ttk.Notebook(outer)
         notebook.pack(fill="both", expand=True)
 
         pipeline_page = ttk.Frame(notebook, style="App.TFrame")
         settings_page = ttk.Frame(notebook, style="App.TFrame")
-        notebook.add(pipeline_page, text="파이프라인")
+        notebook.add(pipeline_page, text="슬리머 실행")
         notebook.add(settings_page, text="환경 설정")
 
         ttk.Label(
@@ -166,10 +323,10 @@ class ExcelSuiteApp:
         right_col = ttk.Frame(pipeline_page, style="App.TFrame")
         right_col.grid(row=0, column=1, sticky="nsew", padx=(0, 8))
 
-        file_card = ttk.Labelframe(
+        ttk.Label(left_col, text="대상 파일", style="Section.TLabel").pack(anchor="w", pady=(0, 4))
+        file_card = ttk.Frame(
             left_col,
-            text="대상 파일",
-            style="Card.TLabelframe",
+            style="Card.TFrame",
             padding=(12, 10, 12, 12),
         )
         file_card.pack(fill="x", pady=(0, 10))
@@ -178,27 +335,27 @@ class ExcelSuiteApp:
         entry.pack(fill="x", expand=True, pady=(4, 6))
         ttk.Button(file_card, text="찾기...", command=self._select_file).pack(anchor="e")
 
-        pipeline_card = ttk.Labelframe(
+        ttk.Label(left_col, text="실행할 기능", style="Section.TLabel").pack(anchor="w", pady=(0, 4))
+        pipeline_card = ttk.Frame(
             left_col,
-            text="실행할 기능",
-            style="Card.TLabelframe",
+            style="Card.TFrame",
             padding=(12, 8, 12, 10),
         )
         pipeline_card.pack(fill="x", pady=(0, 10))
 
         ttk.Checkbutton(
             pipeline_card,
-            text="1) 이름 정의 정리 (definedNames 클린)",
+            text="이름 정의 정리 (definedNames 클린)",
             variable=self.clean_var,
         ).pack(anchor="w", pady=(2, 2))
         ttk.Checkbutton(
             pipeline_card,
-            text="2) 이미지 최적화 (이미지 리사이즈/압축)",
+            text="이미지 최적화 (이미지 리사이즈/압축)",
             variable=self.image_var,
         ).pack(anchor="w", pady=(2, 2))
         self.precision_check = ttk.Checkbutton(
             pipeline_card,
-            text="3) 정밀 슬리머 (Precision Plus)",
+            text="정밀 슬리머 (Precision Plus)",
             variable=self.precision_var,
             command=self._on_precision_toggle,
         )
@@ -211,10 +368,10 @@ class ExcelSuiteApp:
         )
         self.precision_warning.pack(anchor="w", padx=18, pady=(0, 4))
 
-        precision_card = ttk.Labelframe(
+        ttk.Label(left_col, text="정밀 슬리머 옵션", style="Section.TLabel").pack(anchor="w", pady=(0, 4))
+        precision_card = ttk.Frame(
             left_col,
-            text="정밀 슬리머 옵션",
-            style="Card.TLabelframe",
+            style="Card.TFrame",
             padding=(12, 8, 12, 10),
         )
         precision_card.pack(fill="x", pady=(0, 10))
@@ -239,7 +396,7 @@ class ExcelSuiteApp:
         self.prec_force_custom_cb.pack(anchor="w", pady=(2, 2))
         self.prec_force_custom_hint = ttk.Label(
             precision_card,
-            text="권장: 일반적인 경우 사용하지 마세요",
+            text="주의: 숨은 XML 데이터 삭제는 일반적인 경우 사용하지 마세요.",
             foreground="#aa0000",
             background=card_bg,
         )
@@ -266,10 +423,10 @@ class ExcelSuiteApp:
         )
         self.progress.pack(side="left", fill="x", expand=True, padx=(0, 8))
 
-        log_card = ttk.Labelframe(
+        ttk.Label(right_col, text="로그", style="Section.TLabel").pack(anchor="w", pady=(0, 4))
+        log_card = ttk.Frame(
             right_col,
-            text="로그",
-            style="Card.TLabelframe",
+            style="Card.TFrame",
             padding=(12, 8, 12, 12),
         )
         log_card.pack(fill="both", expand=True)
@@ -285,9 +442,15 @@ class ExcelSuiteApp:
         )
         self.log_box.pack(fill="both", expand=True, padx=(0, 4), pady=(0, 4))
 
-        # 스크롤바 테두리를 최소화해서 회색 줄처럼 보이는 영역을 줄인다.
+        # 스크롤바 트랙/테두리를 최소화해서 회색 줄처럼 보이는 영역을 줄인다.
         try:
-            self.log_box.vbar.config(borderwidth=0, highlightthickness=0)
+            self.log_box.vbar.config(
+                borderwidth=0,
+                highlightthickness=0,
+                bg=card_bg,
+                troughcolor=card_bg,
+                relief="flat",
+            )
         except Exception:
             pass
 
@@ -397,162 +560,38 @@ class ExcelSuiteApp:
         self.status_var.set("준비됨")
 
     def _run_pipeline(self, start_path: Path) -> None:
-        current = start_path
-        intermediate_files = []
-        log_files = []
-        steps = []
-        if self.clean_var.get():
-            steps.append("clean")
-        if self.image_var.get():
-            steps.append("image")
-        if self.precision_var.get():
-            steps.append("precision")
+        def _on_finished(final_path: Path) -> None:
+            def _after_msg() -> None:
+                try:
+                    open_in_explorer_select(final_path)
+                except Exception:
+                    pass
+                # 로그는 유지하고 나머지 UI 상태만 초기화
+                self._reset_ui_after_finish()
 
-        total = len(steps)
-        self.log(f"[INFO] 파이프라인 시작: {start_path.name}, 단계 {total}개")
-
-        for index, step in enumerate(steps, start=1):
-            base = (index - 1) * 100.0 / total
-            next_p = index * 100.0 / total
-            try:
-                if step == "clean":
-                    self.set_status("이름 정의 정리 중...", base)
-                    self.log(f"[{index}/{total}] 이름 정의 정리: {current.name}")
-                    (
-                        backup_path,
-                        cleaned_path,
-                        stats,
-                        ts_dir,
-                        top_dir,
-                    ) = process_file_gui(str(current))
-                    current = Path(cleaned_path)
-                    if step != steps[-1]:
-                        intermediate_files.append(current)
-                    self.log(f" - 백업: {backup_path}")
-                    self.log(f" - 정리본: {cleaned_path}")
-                    self.log(
-                        " - 통계: total="
-                        + str(stats["total"])
-                        + ", kept="
-                        + str(stats["kept"])
-                        + ", removed="
-                        + str(stats["removed"])
-                    )
-                elif step == "image":
-                    self.set_status("이미지 최적화 중...", base)
-                    self.log(f"[{index}/{total}] 이미지 최적화: {current.name}")
-                    (
-                        out_path,
-                        before,
-                        after,
-                        count,
-                        log_path,
-                    ) = run_image_slim(
-                        current,
-                        max_edge=1400,
-                        jpeg_quality=80,
-                        progressive=True,
-                    )
-                    current = out_path
-                    if step != steps[-1]:
-                        intermediate_files.append(current)
-                    saved = before - after
-                    pct = (saved / before * 100.0) if before > 0 else 0.0
-                    self.log(f" - 이미지 개수: {count}")
-                    self.log(
-                        " - Before: "
-                        + human_size(before)
-                        + ", After: "
-                        + human_size(after)
-                        + ", Saved: "
-                        + human_size(saved)
-                        + f" ({pct:.1f}%)"
-                    )
-                    self.log(f" - 로그: {log_path}")
-                    log_files.append(log_path)
-                elif step == "precision":
-                    self.set_status("정밀 슬리머 실행 중...", base)
-                    self.log(f"[{index}/{total}] 정밀 슬리머: {current.name}")
-                    aggressive = bool(self.prec_aggressive_var.get())
-                    has_clean_step = "clean" in steps
-                    no_backup = has_clean_step
-                    do_xml_cleanup = bool(self.prec_xmlcleanup_var.get())
-                    force_custom = bool(self.prec_force_custom_var.get())
-
-                    def logger(msg: str) -> None:
-                        self.log("[Precision] " + msg)
-
-                    (
-                        out_path,
-                        saved_mb,
-                        pct,
-                        old_b,
-                        new_b,
-                    ) = run_precision_step(
-                        current,
-                        aggressive,
-                        no_backup,
-                        do_xml_cleanup,
-                        force_custom,
-                        logger,
-                    )
-                    current = out_path
-                    self.log(f" - 결과: {current.name}")
-                    self.log(
-                        " - Before: "
-                        + human_size(old_b)
-                        + ", After: "
-                        + human_size(new_b)
-                        + f", Saved: {saved_mb:.2f} MB ({pct:.1f}%)"
-                    )
-
-                self.set_status("진행 중...", next_p)
-            except Exception as e:
-                self.log(f"[ERROR] {step} 단계에서 오류: {e}")
-                self.set_status("오류 발생", None)
-                self.show_error(
-                    "오류",
-                    f"{step} 단계에서 오류가 발생했습니다.\n\n{e}",
-                )
-                return
-
-        # 모든 단계가 성공적으로 끝난 경우에만 중간 산출물 및 로그 정리
-        for tmp in intermediate_files:
-            try:
-                if tmp.exists() and tmp != current:
-                    tmp.unlink()
-                    self.log(f"[INFO] 중간 결과 삭제: {tmp}")
-            except Exception as e:
-                self.log(f"[WARN] 중간 결과 삭제 실패: {tmp} ({e})")
-
-        for log_path in log_files:
-            try:
-                if log_path.exists():
-                    log_path.unlink()
-                    self.log(f"[INFO] 로그 파일 삭제: {log_path}")
-            except Exception as e:
-                self.log(f"[WARN] 로그 파일 삭제 실패: {log_path} ({e})")
-
-        self.set_status("모든 작업 완료", 100.0)
-        self.log(f"[INFO] 파이프라인 완료. 최종 파일: {current}")
-
-        def _after_msg() -> None:
-            try:
-                open_in_explorer_select(current)
-            except Exception:
-                pass
-            # 로그는 유지하고 나머지 UI 상태만 초기화
-            self._reset_ui_after_finish()
-
-        self.root.after(
-            0,
-            lambda: (
-                messagebox.showinfo(
-                    "완료",
-                    f"모든 작업이 완료되었습니다.\n\n최종 결과 파일:\n{current}",
+            self.root.after(
+                0,
+                lambda: (
+                    messagebox.showinfo(
+                        "완료",
+                        f"모든 작업이 완료되었습니다.\n\n최종 결과 파일:\n{final_path}",
+                    ),
+                    _after_msg(),
                 ),
-                _after_msg(),
-            ),
+            )
+
+        run_pipeline_core(
+            start_path=start_path,
+            use_clean=bool(self.clean_var.get()),
+            use_image=bool(self.image_var.get()),
+            use_precision=bool(self.precision_var.get()),
+            aggressive=bool(self.prec_aggressive_var.get()),
+            do_xml_cleanup=bool(self.prec_xmlcleanup_var.get()),
+            force_custom=bool(self.prec_force_custom_var.get()),
+            log=self.log,
+            set_status=self.set_status,
+            show_error=self.show_error,
+            on_finished=_on_finished,
         )
 
     def run(self) -> None:

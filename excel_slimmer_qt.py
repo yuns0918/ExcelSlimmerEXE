@@ -1,5 +1,6 @@
 import sys
 import threading
+import tempfile
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QObject, QThread, Signal
@@ -35,9 +36,7 @@ def _ensure_module_paths() -> None:
 
 _ensure_module_paths()
 
-from gui_clean_defined_names_desktop_date import process_file_gui
-from excel_image_slimmer_gui_v3 import slim_xlsx, human_size, open_in_explorer_select
-from excel_slimmer_precision_plus import process_file as precision_process, Progress
+from excel_suite_pipeline import run_pipeline_core
 
 
 def run_image_slim(
@@ -45,7 +44,6 @@ def run_image_slim(
     max_edge: int,
     jpeg_quality: int,
     progressive: bool,
-    log_dir: Path | None = None,
 ):
     base_out = input_path.with_stem(input_path.stem + "_slim")
     out_path = base_out
@@ -54,11 +52,10 @@ def run_image_slim(
         out_path = input_path.with_stem(input_path.stem + f"_slim({idx})")
         idx += 1
 
-    if log_dir is not None:
-        log_dir.mkdir(parents=True, exist_ok=True)
-        log_path = log_dir / f"{input_path.stem}_image_slim.log"
-    else:
-        log_path = input_path.with_name(input_path.stem + "_image_slim.log")
+    # 로그는 사용자 결과 폴더가 아닌 시스템 임시 폴더에 모아 둔다.
+    log_root = Path(tempfile.gettempdir()) / "ExcelSlimmerLogs"
+    log_root.mkdir(parents=True, exist_ok=True)
+    log_path = log_root / f"{input_path.stem}_image_slim.log"
     before, after, count = slim_xlsx(
         input_path,
         out_path,
@@ -126,11 +123,48 @@ class PipelineWorker(QObject):
         self.aggressive = aggressive
         self.do_xml_cleanup = do_xml_cleanup
         self.force_custom = force_custom
-        self.log_dir: Path | None = None
+        # Clean 단계에서 생성되는 ExcelSlimmed 타임스탬프 폴더 경로
+        self.output_dir: Path | None = None
 
     def run(self) -> None:
+        """Run the shared pipeline core in a worker thread.
+
+        이 메서드는 excel_suite_pipeline.run_pipeline_core 를 호출해서
+        tkinter 버전과 완전히 동일한 파이프라인 로직을 재사용합니다.
+        """
+
+        last_progress = 0.0
+
+        def log_cb(msg: str) -> None:
+            self.log.emit(msg)
+
+        def set_status_cb(text: str, progress: float | None) -> None:
+            nonlocal last_progress
+            if progress is not None:
+                last_progress = progress
+            self.status.emit(text, last_progress)
+
+        def show_error_cb(title: str, text: str) -> None:
+            # 실제 메시지 박스는 메인 스레드에서 처리하도록 failed 시그널로 위임
+            self.failed.emit(text)
+
+        def on_finished_cb(final_path: Path) -> None:
+            self.finished.emit(str(final_path))
+
         try:
-            self._run_pipeline()
+            run_pipeline_core(
+                start_path=self.path,
+                use_clean=self.use_clean,
+                use_image=self.use_image,
+                use_precision=self.use_precision,
+                aggressive=self.aggressive,
+                do_xml_cleanup=self.do_xml_cleanup,
+                force_custom=self.force_custom,
+                log=log_cb,
+                set_status=set_status_cb,
+                show_error=show_error_cb,
+                on_finished=on_finished_cb,
+            )
         except Exception as e:  # noqa: BLE001
             self.failed.emit(f"예기치 못한 오류: {e}")
 
@@ -166,11 +200,11 @@ class PipelineWorker(QObject):
                         ts_dir,
                         top_dir,
                     ) = process_file_gui(str(current))
-                    # 로그는 해당 타임스탬프 폴더 하위 logs/ 에 모아서 저장
+                    # ExcelSlimmed\타임스탬프 폴더 경로를 기록해 두었다가 마지막에 정리
                     try:
-                        self.log_dir = Path(ts_dir) / "logs"
+                        self.output_dir = Path(ts_dir)
                     except Exception:
-                        self.log_dir = None
+                        self.output_dir = None
                     current = Path(cleaned_path)
                     if step != steps[-1]:
                         intermediate_files.append(current)
@@ -198,7 +232,6 @@ class PipelineWorker(QObject):
                         max_edge=1400,
                         jpeg_quality=80,
                         progressive=True,
-                        log_dir=self.log_dir,
                     )
                     current = out_path
                     if step != steps[-1]:
@@ -258,7 +291,7 @@ class PipelineWorker(QObject):
         self.log.emit(f"[INFO] 파이프라인 완료. 최종 파일: {current}")
         self.finished.emit(str(current))
 
-        # 모든 단계가 성공적으로 끝난 경우에만 중간 산출물 및 로그 정리
+        # 모든 단계가 성공적으로 끝난 경우에만 중간 산출물 정리
         for tmp in intermediate_files:
             try:
                 if tmp.exists() and tmp != current:
@@ -266,6 +299,27 @@ class PipelineWorker(QObject):
                     self.log.emit(f"[INFO] 중간 결과 삭제: {tmp}")
             except Exception as e:  # noqa: BLE001
                 self.log.emit(f"[WARN] 중간 결과 삭제 실패: {tmp} ({e})")
+
+        # Clean 단계를 거친 경우: ExcelSlimmed\타임스탬프 폴더 내에서
+        # 백업/최종본 이외의 .xlsx 는 모두 정리해서 엑셀 파일 2개만 남기기
+        if self.output_dir is not None:
+            try:
+                keep_paths: set[Path] = set()
+                # 최종 결과 파일은 항상 유지
+                keep_paths.add(current.resolve())
+                # 백업 파일(이름에 _backup 포함) 모두 유지
+                for backup in self.output_dir.glob("*_backup*.xlsx"):
+                    keep_paths.add(backup.resolve())
+
+                for xlsx in self.output_dir.glob("*.xlsx"):
+                    if xlsx.resolve() not in keep_paths:
+                        try:
+                            xlsx.unlink()
+                            self.log.emit(f"[INFO] 중간 엑셀 삭제: {xlsx}")
+                        except Exception as e:  # noqa: BLE001
+                            self.log.emit(f"[WARN] 중간 엑셀 삭제 실패: {xlsx} ({e})")
+            except Exception as e:  # noqa: BLE001
+                self.log.emit(f"[WARN] 결과 폴더 정리 중 오류: {e}")
 
 
 class MainWindow(QMainWindow):
@@ -560,13 +614,7 @@ class MainWindow(QMainWindow):
                 "완료",
                 f"모든 작업이 완료되었습니다.\n\n최종 결과 파일:\n{final_path}",
             )
-
-            # 탐색기 열기는 별도 스레드에서 실행해 UI 블로킹(응답 없음)을 방지
-            threading.Thread(
-                target=open_in_explorer_select,
-                args=(Path(final_path),),
-                daemon=True,
-            ).start()
+            # 자동으로 탐색기를 열지 않고, 안내 문구로 경로만 보여줍니다.
 
         def on_failed(msg: str) -> None:
             self.run_button.setEnabled(True)

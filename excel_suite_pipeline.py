@@ -399,12 +399,6 @@ class ExcelSuiteApp:
         )
         precision_card.pack(fill="x", pady=(0, 10))
 
-        self.prec_aggressive_cb = ttk.Checkbutton(
-            precision_card,
-            text="공격 모드 (이미지 리사이즈 + PNG→JPG)",
-            variable=self.prec_aggressive_var,
-        )
-        self.prec_aggressive_cb.pack(anchor="w", pady=(2, 2))
         self.prec_xmlcleanup_cb = ttk.Checkbutton(
             precision_card,
             text="XML 정리 (calcChain, printerSettings 등)",
@@ -417,6 +411,12 @@ class ExcelSuiteApp:
             variable=self.prec_force_custom_var,
         )
         self.prec_force_custom_cb.pack(anchor="w", pady=(2, 2))
+        self.prec_aggressive_cb = ttk.Checkbutton(
+            precision_card,
+            text="공격 모드 (이미지 리사이즈 + PNG→JPG)",
+            variable=self.prec_aggressive_var,
+        )
+        self.prec_aggressive_cb.pack(anchor="w", pady=(2, 2))
         self.prec_force_custom_hint = ttk.Label(
             precision_card,
             text="주의: 숨은 XML 데이터 삭제는 일반적인 경우 사용하지 마세요.",

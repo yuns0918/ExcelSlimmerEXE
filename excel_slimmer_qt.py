@@ -435,13 +435,13 @@ class MainWindow(QMainWindow):
         opt_layout = QVBoxLayout(opt_group)
         opt_layout.setSpacing(4)
 
-        self.aggressive_check = QCheckBox("공격 모드 (이미지 리사이즈 + PNG→JPG)")
         self.xmlcleanup_check = QCheckBox("XML 정리 (calcChain, printerSettings 등)")
         self.force_custom_check = QCheckBox("숨은 XML 데이터 삭제 (customXml, 주의)")
+        self.aggressive_check = QCheckBox("공격 모드 (이미지 리사이즈 + PNG→JPG)")
 
-        opt_layout.addWidget(self.aggressive_check)
         opt_layout.addWidget(self.xmlcleanup_check)
         opt_layout.addWidget(self.force_custom_check)
+        opt_layout.addWidget(self.aggressive_check)
 
         opt_warn = QLabel("주의: 숨은 XML 데이터 삭제는 일반적인 경우 사용하지 마세요.")
         opt_warn.setStyleSheet("color: #aa0000; font-size: 9pt;")

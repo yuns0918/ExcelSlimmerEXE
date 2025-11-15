@@ -333,7 +333,7 @@ class ExcelSuiteApp:
 
         ttk.Label(
             settings_page,
-            text="환경 설정은 추후 확장을 위해 예약된 영역입니다.",
+            text="추후 업데이트 예정입니다.",
             style="SubHeader.TLabel",
         ).pack(pady=20, padx=20, anchor="w")
 

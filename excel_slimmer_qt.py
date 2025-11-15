@@ -493,7 +493,7 @@ class MainWindow(QMainWindow):
 
         # 환경 설정 탭은 간단 안내만
         s_layout = QVBoxLayout(self.settings_tab)
-        s_layout.addWidget(QLabel("환경 설정은 추후 확장을 위해 예약된 영역입니다."))
+        s_layout.addWidget(QLabel("추후 업데이트 예정입니다."))
         s_layout.addStretch(1)
 
         self._update_precision_options_state()

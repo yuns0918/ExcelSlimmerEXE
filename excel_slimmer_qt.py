@@ -412,9 +412,7 @@ class MainWindow(QMainWindow):
         func_layout.setSpacing(4)
 
         self.clean_check = QCheckBox("이름 정의 정리 (definedNames 클린)")
-        self.clean_check.setChecked(True)
         self.image_check = QCheckBox("이미지 최적화 (이미지 리사이즈/압축)")
-        self.image_check.setChecked(True)
         self.precision_check = QCheckBox("정밀 슬리머 (Precision Plus)")
 
         func_layout.addWidget(self.clean_check)
@@ -573,8 +571,9 @@ class MainWindow(QMainWindow):
     def _reset_ui_after_finish(self) -> None:
         """파이프라인 완료 후 기본 상태로 되돌립니다 (로그는 유지)."""
         self.file_edit.clear()
-        self.clean_check.setChecked(True)
-        self.image_check.setChecked(True)
+        # 초기 모드: 실행할 기능은 아무것도 선택하지 않은 상태
+        self.clean_check.setChecked(False)
+        self.image_check.setChecked(False)
         self.precision_check.setChecked(False)
         self.aggressive_check.setChecked(False)
         self.xmlcleanup_check.setChecked(False)
@@ -601,6 +600,15 @@ class MainWindow(QMainWindow):
             or self.precision_check.isChecked()
         ):
             QMessageBox.information(self, "안내", "실행할 기능을 하나 이상 선택하세요.")
+            return
+
+        # 정밀 슬리머를 켠 경우, 하위 옵션을 하나 이상 선택해야 실행
+        if self.precision_check.isChecked() and not (
+            self.aggressive_check.isChecked()
+            or self.xmlcleanup_check.isChecked()
+            or self.force_custom_check.isChecked()
+        ):
+            QMessageBox.warning(self, "안내", "정밀 슬리머 옵션을 1가지 이상 선택해야 합니다.")
             return
 
         self.log_edit.clear()

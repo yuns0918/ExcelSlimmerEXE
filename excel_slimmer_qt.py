@@ -4,6 +4,7 @@ import tempfile
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QObject, Signal
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -669,6 +670,9 @@ class MainWindow(QMainWindow):
 
 def main() -> None:
     app = QApplication(sys.argv)
+    # 사무용에 적합하면서도 너무 딱딱하지 않은 기본 폰트 설정
+    # 맑은 고딕이 설치되지 않은 환경에서는 Qt가 자동으로 대체 폰트를 사용합니다.
+    app.setFont(QFont("맑은 고딕", 10))
     window = MainWindow()
     window.show()
     sys.exit(app.exec())

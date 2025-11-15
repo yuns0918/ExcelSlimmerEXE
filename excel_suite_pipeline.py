@@ -290,6 +290,9 @@ class ExcelSuiteApp:
         card_bg = "#ffffff"
         self.root.configure(bg=base_bg)
 
+        # 기본 폰트를 맑은 고딕으로 설정 (사무용에 적합하면서도 너무 딱딱하지 않게)
+        self.root.option_add("*Font", ("맑은 고딕", 10))
+
         style.configure("App.TFrame", background=base_bg)
         style.configure(
             "Card.TFrame",
@@ -303,16 +306,16 @@ class ExcelSuiteApp:
             borderwidth=1,
             relief="solid",
         )
-        style.configure("Card.TLabelframe.Label", background=card_bg, font=("Segoe UI", 10, "bold"))
+        style.configure("Card.TLabelframe.Label", background=card_bg, font=("맑은 고딕", 10, "bold"))
         style.configure("TLabel", background=card_bg)
         style.configure("TCheckbutton", background=card_bg)
         style.configure("TNotebook", background=base_bg, borderwidth=0)
         style.configure("TNotebook.Tab", background=base_bg)
-        style.configure("TButton", font=("Segoe UI", 10), background=card_bg)
+        style.configure("TButton", font=("맑은 고딕", 10), background=card_bg)
         style.map("TButton", background=[("active", "#f0f0f0")])
-        style.configure("Header.TLabel", font=("Segoe UI", 16, "bold"), background=base_bg)
+        style.configure("Header.TLabel", font=("맑은 고딕", 16, "bold"), background=base_bg)
         style.configure("SubHeader.TLabel", foreground="#666666", background=base_bg)
-        style.configure("Section.TLabel", font=("Segoe UI", 10, "bold"), background=base_bg)
+        style.configure("Section.TLabel", font=("맑은 고딕", 10, "bold"), background=base_bg)
 
         outer = ttk.Frame(self.root, style="App.TFrame", padding=(18, 14, 18, 18))
         outer.pack(fill="both", expand=True)
